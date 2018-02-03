@@ -1237,6 +1237,80 @@ geoPlotGini <- function(hit_scores = geoReportHitscores(params,source_data=sourc
     
 }
 
+
+#------------------------------------------------
+#' Calculates the probability that two crimes are from the same source.
+#' Also allows an optional plot showing the probabilities of allocation different
+#' sources for each of the two selected crimes, using myMCMC$allocation.
+#' The function returns the position of the two chosen crimes in the original
+#'list, their lon/lat and the probability that they come from the same source.
+#' @examples
+
+	{
+		new_lines <- as.matrix(myMCMC$allocation)
+
+		# plot graph if required
+		if(plot.graph ==TRUE)
+			{
+				# plot both
+				quartz(width=5,height=5)
+				plot(new_lines[crime1,],type="l",xlim=c(0,dim(new_lines)[2]),ylim=c(0,1),col="red",xlab="source",ylab="probability",main=paste(crime1,",",crime2))
+				points(new_lines[crime2,]+offset,type="l",col="darkgray")
+			}
+		
+		# calculate probability that two crimes come from the same source
+		# set to 1 if we are considering the probability that a source coallocates with itself!
+		ifelse(crime1==crime2,
+		prob_coall<-1,
+		prob_coall <- sum(new_lines[crime1,]*new_lines[crime2,]))
+		
+		# if graph is being plotted, add text and legend
+		if(plot.graph ==TRUE)
+			{
+				text(dim(new_lines)[2]/1.5,0.9,paste("probability of coallocation =", round(prob_coall,3)),cex=0.9)
+				legend(dim(new_lines)[2]/1.3,0.2,legend=c(crime1,crime2),lwd=1,col=c("red","darkgray"),cex=0.7)
+			}
+		
+		# long/lat of the two crimes being compared
+		pos_data <- cbind(crime_data$longitude[c(crime1,crime2)],crime_data$latitude[c(crime1,crime2)])
+		
+		return(list("crime.1"=crime1,"crime.2"=crime2,"crime.locations"=pos_data,"p.coallocation"=prob_coall))
+	}
+#------------------------------------------------
+#' Calculates the gini coefficient for the probability surface.
+#' This is a measure of unevenness, with a value of 0 meaning perfectly
+#' even and a value of 1 maximally uneven.
+#' @examples
+#' gini_coefficient()
+
+gini_coefficient <- function(y_vals = myMCMC$surface)
+	{
+		# load required library for function 'singtegral'
+		library(Bolstad2)
+		
+		# make sure input is a sorted vector of proportions
+		raw_probs <- sort(as.vector(y_vals))
+		cum_probs <- cumsum(raw_probs)/sum(raw_probs)
+		one_to_one <- seq(1/length(cum_probs),1,1/length(cum_probs))
+		x_vals <- seq(1,length(cum_probs),1)
+		
+		# plot
+		plot(sort(cum_probs),type="l",xlim=c(0,length(cum_probs)),ylim=c(0,1),col="red",main="Gini coefficient",xlab="x",ylab="y")
+		lines(one_to_one,type="l",col="black")
+
+		# calculate areas under curves and gini coefficient
+		auc_a_plus_b <- sintegral(x_vals, one_to_one)$int
+		auc_b <- sintegral(x_vals,cum_probs)$int
+		auc_a <- auc_a_plus_b-auc_b
+		gini_coefficient <- auc_a/auc_a_plus_b
+		
+		# add text to plot
+		text(0.2*length(one_to_one),0.9, paste("gini coefficient =",round(gini_coefficient,3)))
+		
+		# return value
+		return(list(gini_coefficient=gini_coefficient))
+	}
+
 #------------------------------------------------
 #' Calculates hit scores for a ring-search strategy (ie searching in an expanding radius out from the crimes).
 #' Also plots the crimes and sources with merged polygons showing these (merged and clipped) rings
@@ -1249,18 +1323,6 @@ ringHS <- function(my_crime_data=crime_data,my_source_data=source_data,buffer_ra
 		library(rgeos)
 		library(sp)
 		
-		
-		# library(GISTools)
-		# library(maps)
-		# library(ggmap)
-		# library(geosphere)		
-		# library(PBSmapping)
-		# library(plotrix)
-		# library(raster)
-		
-		
-		# library(gdistance)
-		# library(ggmap)
 		# function for calculating UTM zone from mean of longitude of crimes
 		long2UTM <- function(long)
 			{
@@ -1396,8 +1458,7 @@ ringHS <- function(my_crime_data=crime_data,my_source_data=source_data,buffer_ra
 		# without polygons
 		ring_output <- list(ring_table=ring_table,ring_areas=ring_areas,ring_hs=ring_hs,my_UTM=my_UTM,map_area_m_sq=map_area_m_sq)
 		return(ring_output)
-	}
-
+		
 #------------------------------------------------
 
 

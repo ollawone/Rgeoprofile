@@ -1,0 +1,4194 @@
+library(devtools)
+document()
+library(devtools)
+document()
+?geoPlotZoom
+document()
+?geoPlotZoom
+# simulated data#
+sim <-rDPM(50, priorMean_longitude = -0.04217491, priorMean_latitude = #
+51.5235505, alpha=10, sigma=1, tau=3)#
+d <- geoData(sim$longitude, sim $latitude)#
+s <- geoDataSource(sim$source_lon, sim$source_lat)#
+p <- geoParams(data = d, sigma_mean = 1.0, sigma_squared_shape = 2)#
+m <- geoMCMC(data = d, params = p)#
+# extract sources identified by the model#
+z <- geoPlotZoom(my_data = d, my_params = p, my_surface = m$geoProfile)#
+# replot zoom, customising the output with geoPlotMap()#
+geoPlotMap(data = d, source = s, params = z$paramsZoom, breakPercent = seq(0, 10, 1), #
+mapType = "roadmap", contourCols =c("red", "orange","yellow","white"), #
+crimeCol = "black", crimeCex = 2, sourceCol = "red", sourceCex = 2, #
+surface = z$surfaceZoom, gpLegend=TRUE)
+library(devtools)
+document()
+?geoRingHitscores
+library(devtools)
+document()
+?geoReportHitscores
+# John Snow cholera data#
+data(Cholera)#
+d <- geoData(Cholera[,1],Cholera[,2])#
+data(WaterPumps)#
+s <- geoDataSource(WaterPumps[,1], WaterPumps[,2])#
+p <- geoParams(data = d, sigma_mean = 1.0, sigma_squared_shape = 2, samples = 20000, #
+chains = 10, burnin = 1000, priorMean_longitude = mean(d$longitude), #
+priorMean_latitude = mean(d$latitude), guardRail = 0.1)#
+m <- geoMCMC(data = d, params = p)#
+gp <- m$geoProfile#
+geoPlotMap(params = p, data = d, source = s, breakPercent = seq(0, 50, 5), mapType = "hybrid",#
+contourCols = c("red", "orange", "yellow", "white"), crimeCol = "black", crimeBorderCol = "white", #
+crimeCex = 2, sourceCol = "red", sourceCex = 2, surface = gp)#
+hs <- geoReportHitscores(params=p,source_data=s,surface=m$surface)
+# Produce a series of plots, walking through the Gibbs sampler step by step.#
+#
+# --------------------------------------------------#
+#
+# start optional save-to-file function#
+plotOn = function(active=FALSE,fileroot='',filestem1='',filestem2='',fileindex='',type='pdf',width=6,height=6,res=300) {#
+	if (active) {#
+		if (type=='pdf') {#
+			pdf(file=paste(fileroot,filestem1,filestem2,fileindex,".pdf",sep=""), bg="white", width=width, height=height)#
+		}#
+		if (type=='png') {#
+			png(file=paste(fileroot,filestem1,filestem2,fileindex,".png",sep=""), bg="white", width=width*500, height=height*500,res=res)#
+		}#
+	}#
+}#
+#
+# end optional save-to-file function#
+plotOff = function(active=FALSE) {#
+	if (active) {#
+		dev.off()#
+	}#
+}#
+#
+# smooth a matrix#
+matSmooth = function(z,smoothSize) {#
+	newMat1 = matrix(0,nrow(z),smoothSize)#
+	for (i in 1:nrow(z)) {#
+		newMat1[i,] = spline(z[i,],n=smoothSize)$y#
+	}#
+	newMat2 = matrix(0,smoothSize,smoothSize)#
+	for (i in 1:smoothSize) {#
+		newMat2[,i] = spline(newMat1[,i],n=smoothSize)$y#
+	}#
+	return(newMat2)#
+}#
+#
+# --------------------------------------------------#
+#
+# parameters#
+L = 15#
+sigma = 4#
+tau = 10#
+#
+mu_x = c(-5,5)#
+mu_y = c(5,-5)#
+#
+#mu_x = c(-1,4)#
+#mu_y = c(3,-3)#
+true_group = c(rep(1,5),rep(2,5))#
+#
+group = true_group#
+n = length(group)#
+reps = 1000#
+#
+# save to...#
+fileroot = "~/Desktop/R input and output/Gibbs/"#
+filetype = 'png'#
+fileres = 200#
+filewidth=3#
+fileheight=3#
+plotToFile = FALSE#
+#
+data_x = rnorm(n,mean=mu_x[group],sd=sigma)#
+data_y = rnorm(n,mean=mu_y[group],sd=sigma)#
+#
+gridsize = 101#
+smoothSize = 500#
+xvec = seq(-L,L,l=gridsize)#
+yvec = seq(-L,L,l=gridsize)#
+xvec2 = spline(xvec,n=smoothSize)$y#
+yvec2 = spline(yvec,n=smoothSize)$y#
+xmat = outer(rep(1,gridsize),xvec)#
+ymat = outer(yvec,rep(1,gridsize))#
+#
+mu1_keep = matrix(0,reps,2)#
+mu2_keep = matrix(0,reps,2)#
+#
+# calculate and plot initial (random) grouping#
+group = sample(2,n,rep=T)#
+#
+#__________________________________________________________#
+# PLOT 1 RAW DATA#
+#__________________________________________________________#
+# data no groups#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs0',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+plotOff(active=plotToFile)
+plotToFile = TRUE
+data_x = rnorm(n,mean=mu_x[group],sd=sigma)#
+data_y = rnorm(n,mean=mu_y[group],sd=sigma)#
+#
+gridsize = 101#
+smoothSize = 500#
+xvec = seq(-L,L,l=gridsize)#
+yvec = seq(-L,L,l=gridsize)#
+xvec2 = spline(xvec,n=smoothSize)$y#
+yvec2 = spline(yvec,n=smoothSize)$y#
+xmat = outer(rep(1,gridsize),xvec)#
+ymat = outer(yvec,rep(1,gridsize))#
+#
+mu1_keep = matrix(0,reps,2)#
+mu2_keep = matrix(0,reps,2)#
+#
+# calculate and plot initial (random) grouping#
+group = sample(2,n,rep=T)#
+#
+#__________________________________________________________#
+# PLOT 1 RAW DATA#
+#__________________________________________________________#
+# data no groups#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs0',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+plotOff(active=plotToFile)
+filewidth=1#
+fileheight=1#
+plotToFile = TRUE#
+#
+data_x = rnorm(n,mean=mu_x[group],sd=sigma)#
+data_y = rnorm(n,mean=mu_y[group],sd=sigma)#
+#
+gridsize = 101#
+smoothSize = 500#
+xvec = seq(-L,L,l=gridsize)#
+yvec = seq(-L,L,l=gridsize)#
+xvec2 = spline(xvec,n=smoothSize)$y#
+yvec2 = spline(yvec,n=smoothSize)$y#
+xmat = outer(rep(1,gridsize),xvec)#
+ymat = outer(yvec,rep(1,gridsize))#
+#
+mu1_keep = matrix(0,reps,2)#
+mu2_keep = matrix(0,reps,2)#
+#
+# calculate and plot initial (random) grouping#
+group = sample(2,n,rep=T)#
+#
+#__________________________________________________________#
+# PLOT 1 RAW DATA#
+#__________________________________________________________#
+# data no groups#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs0',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+plotOff(active=plotToFile)
+filewidth=2#
+fileheight=2#
+plotToFile = TRUE#
+#
+data_x = rnorm(n,mean=mu_x[group],sd=sigma)#
+data_y = rnorm(n,mean=mu_y[group],sd=sigma)#
+#
+gridsize = 101#
+smoothSize = 500#
+xvec = seq(-L,L,l=gridsize)#
+yvec = seq(-L,L,l=gridsize)#
+xvec2 = spline(xvec,n=smoothSize)$y#
+yvec2 = spline(yvec,n=smoothSize)$y#
+xmat = outer(rep(1,gridsize),xvec)#
+ymat = outer(yvec,rep(1,gridsize))#
+#
+mu1_keep = matrix(0,reps,2)#
+mu2_keep = matrix(0,reps,2)#
+#
+# calculate and plot initial (random) grouping#
+group = sample(2,n,rep=T)#
+#
+#__________________________________________________________#
+# PLOT 1 RAW DATA#
+#__________________________________________________________#
+# data no groups#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs0',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+plotOff(active=plotToFile)
+#__________________________________________________________#
+# PLOT 2 WITH RANDOM LABELS#
+#__________________________________________________________#
+# plot with random labels#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs1',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+# calculate and plot first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+#__________________________________________________________#
+# PLOT 3 SOURCE 1 CONTOURS#
+#__________________________________________________________#
+# plot contours for group 1#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs2',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 4 SOURCE 1 CONTOURS AND DRAW#
+#__________________________________________________________#
+# draw from first posterior distribution#
+postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu1_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu1_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu1_keep[1,] = c(mu1_x,mu1_y)#
+#
+# plot contours and draw for group 1#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs3',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 5 SOURCE 2 CONTOURS#
+#__________________________________________________________#
+#
+# plot contours for group 2#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs4',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+points(data_x,data_y,pch=4,lwd=2)#
+#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 6 SOURCE 2 CONTOURS AND DRAW#
+#__________________________________________________________#
+# plot contours for group 2#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs5',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+#
+# draw from second posterior distribution#
+postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu2_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu2_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu2_keep[1,] = c(mu2_x,mu2_y)#
+#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 7 DATA AND SOURCES ONLY#
+#__________________________________________________________#
+# plot data and both sources#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs6',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 8 DATA AND SOURCES ONLY - WITHOUT LABELS#
+#__________________________________________________________#
+# plot data and both sources - without labels#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs7',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 9 ASSIGN NEW GROUPS#
+#__________________________________________________________#
+# assign new groups#
+for (i in 1:n) {#
+	logProb = dnorm(data_x[i],mean=c(mu1_x,mu2_x),sd=sigma, log=TRUE) + dnorm(data_y[i],mean=c(mu1_y,mu2_y),sd=sigma, log=TRUE)#
+	probVec = exp(logProb-max(logProb))#
+	group[i] = sample(2,1,prob=probVec)#
+}#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs8',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 10 NEW SOURCE I CONTOURS#
+#__________________________________________________________#
+# calculate and plot new first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+# plot new red contours#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs9',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 10 DRAW FROM NEW SOURCE I CONTOURS#
+#__________________________________________________________#
+#
+# draw from first posterior distribution#
+postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu1_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu1_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu1_keep[2,] = c(mu1_x,mu1_y)#
+#
+#plot change in red draw#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs10',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 11 NEW SOURCE 2 CONTOURS#
+#__________________________________________________________#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs11',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+#
+#points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 12 DRAW FROM NEW SOURCE#
+#__________________________________________________________#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs12',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+#
+# calculate and plot new first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+# draw from second posterior distribution#
+postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu2_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu2_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu2_keep[2,] = c(mu2_x,mu2_y)#
+points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+#
+lines(c(mu2_keep[1,1],mu2_keep[2,1]),c(mu2_keep[1,2],mu2_keep[2,2]),col="blue")#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 13 UPDATED SOURCE POSITIONS WITHOUT CONTOURS#
+#__________________________________________________________#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs13',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="white")#
+#
+plot(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude'points(data_x,data_y,pch=4,lwd=2)#
+#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+#
+lines(c(mu2_keep[1,1],mu2_keep[2,1]),c(mu2_keep[1,2],mu2_keep[2,2]),col="blue")#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOTs	 14 AND ON, LOOPING THROUGH GIBBS SAMPLER#
+#__________________________________________________________#
+#
+# continue looping through Gibbs sampler, plotting at certain points#
+plotSteps = c(3,4,5,10,100,1000)#
+zmat = zmat*0#
+counter=0#
+for (rep in 3:reps) {#
+	mu1_x = mu1_keep[rep-1,1]#
+	mu1_y = mu1_keep[rep-1,2]#
+	mu2_x = mu2_keep[rep-1,1]#
+	mu2_y = mu2_keep[rep-1,2]#
+	# update grouping#
+	for (i in 1:n) {#
+		logProb = dnorm(data_x[i],mean=c(mu1_x,mu2_x),sd=sigma, log=TRUE) + dnorm(data_y[i],mean=c(mu1_y,mu2_y),sd=sigma, log=TRUE)#
+		probVec = exp(logProb-max(logProb))#
+		group[i] = sample(2,1,prob=probVec)#
+	}#
+	# draw new means#
+	postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+	postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+	postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+	mu1_keep[rep,1] = rnorm(1,postmean_x,sd=sqrt(postvar))#
+	mu1_keep[rep,2] = rnorm(1,postmean_y,sd=sqrt(postvar))#
+#
+	tempmat = dnorm(xmat,postmean_x,sd=sqrt(postvar))*dnorm(ymat,postmean_y,sd=sqrt(postvar))#
+	zmat = zmat + tempmat/sum(tempmat)#
+#
+	postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+	postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+	postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+	mu2_keep[rep,1] = rnorm(1,postmean_x,sd=sqrt(postvar))#
+	mu2_keep[rep,2] = rnorm(1,postmean_y,sd=sqrt(postvar))#
+#
+	tempmat = dnorm(xmat,postmean_x,sd=sqrt(postvar))*dnorm(ymat,postmean_y,sd=sqrt(postvar))#
+	zmat = zmat + tempmat/sum(tempmat)#
+	if (sum(plotSteps==rep)>0) {#
+		counter = counter+1#
+		# plot data and both sources - without labels#
+		plotOn(active=plotToFile,fileroot,filestem1='Gibbs',fileindex=13+counter,type=filetype,res=fileres,width=filewidth,height=fileheight)#
+		plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+		lines(mu1_keep[1:rep,1],mu1_keep[1:rep,2],col="red")#
+		lines(mu2_keep[1:rep,1],mu2_keep[1:rep,2],col="blue")#
+		points(mu1_keep[rep,1],mu1_keep[rep,2],pch=20,col="red",cex=1.5)#
+		points(mu2_keep[rep,1],mu2_keep[rep,2],pch=20,col="blue",cex=1.5)#
+		points(data_x,data_y,pch=4,lwd=2,cex=1)#
+		plotOff(active=plotToFile)#
+		if (!plotToFile) {Sys.sleep(0.5)}#
+	}#
+}#
+#
+# plot final distribution#
+geoprofile = matrix(rank(zmat),nrow=nrow(zmat))#
+geoprofile2 = matSmooth(geoprofile,smoothSize)#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs',fileindex=13+counter+1,type=filetype,res=fileres,width=filewidth,height=fileheight)#
+image(xvec2,yvec2,t(geoprofile2),xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2,cex=1)#
+plotOff(active=plotToFile)#
+#
+plotOn(active=plotToFile,fileroot,filestem1='GibbsFinal',fileindex=13+counter+1,type=filetype,res=fileres,width=filewidth,height=fileheight)#
+image(xvec2,yvec2,t(geoprofile2),xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2,cex=1)#
+points(mu_x,mu_y,pch=15,col=c("blue","red"))#
+plotOff(active=plotToFile)
+# Produce a series of plots, walking through the Gibbs sampler step by step.#
+#
+# --------------------------------------------------#
+#
+# start optional save-to-file function#
+plotOn = function(active=FALSE,fileroot='',filestem1='',filestem2='',fileindex='',type='pdf',width=6,height=6,res=300) {#
+	if (active) {#
+		if (type=='pdf') {#
+			pdf(file=paste(fileroot,filestem1,filestem2,fileindex,".pdf",sep=""), bg="white", width=width, height=height)#
+		}#
+		if (type=='png') {#
+			png(file=paste(fileroot,filestem1,filestem2,fileindex,".png",sep=""), bg="white", width=width*500, height=height*500,res=res)#
+		}#
+	}#
+}#
+#
+# end optional save-to-file function#
+plotOff = function(active=FALSE) {#
+	if (active) {#
+		dev.off()#
+	}#
+}#
+#
+# smooth a matrix#
+matSmooth = function(z,smoothSize) {#
+	newMat1 = matrix(0,nrow(z),smoothSize)#
+	for (i in 1:nrow(z)) {#
+		newMat1[i,] = spline(z[i,],n=smoothSize)$y#
+	}#
+	newMat2 = matrix(0,smoothSize,smoothSize)#
+	for (i in 1:smoothSize) {#
+		newMat2[,i] = spline(newMat1[,i],n=smoothSize)$y#
+	}#
+	return(newMat2)#
+}#
+#
+# --------------------------------------------------#
+#
+# parameters#
+L = 15#
+sigma = 4#
+tau = 10#
+#
+mu_x = c(-5,5)#
+mu_y = c(5,-5)#
+#
+#mu_x = c(-1,4)#
+#mu_y = c(3,-3)#
+true_group = c(rep(1,5),rep(2,5))#
+#
+group = true_group#
+n = length(group)#
+reps = 1000#
+#
+# save to...#
+fileroot = "~/Desktop/R input and output/Gibbs/"#
+filetype = 'png'#
+fileres = 200#
+filewidth=2#
+fileheight=2#
+plotToFile = TRUE#
+#
+data_x = rnorm(n,mean=mu_x[group],sd=sigma)#
+data_y = rnorm(n,mean=mu_y[group],sd=sigma)#
+#
+gridsize = 101#
+smoothSize = 500#
+xvec = seq(-L,L,l=gridsize)#
+yvec = seq(-L,L,l=gridsize)#
+xvec2 = spline(xvec,n=smoothSize)$y#
+yvec2 = spline(yvec,n=smoothSize)$y#
+xmat = outer(rep(1,gridsize),xvec)#
+ymat = outer(yvec,rep(1,gridsize))#
+#
+mu1_keep = matrix(0,reps,2)#
+mu2_keep = matrix(0,reps,2)#
+#
+# calculate and plot initial (random) grouping#
+group = sample(2,n,rep=T)#
+#
+#__________________________________________________________#
+# PLOT 1 RAW DATA#
+#__________________________________________________________#
+# data no groups#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs0',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 2 WITH RANDOM LABELS#
+#__________________________________________________________#
+# plot with random labels#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs1',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+# calculate and plot first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+#__________________________________________________________#
+# PLOT 3 SOURCE 1 CONTOURS#
+#__________________________________________________________#
+# plot contours for group 1#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs2',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 4 SOURCE 1 CONTOURS AND DRAW#
+#__________________________________________________________#
+# draw from first posterior distribution#
+postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu1_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu1_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu1_keep[1,] = c(mu1_x,mu1_y)#
+#
+# plot contours and draw for group 1#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs3',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 5 SOURCE 2 CONTOURS#
+#__________________________________________________________#
+#
+# plot contours for group 2#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs4',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+points(data_x,data_y,pch=4,lwd=2)#
+#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 6 SOURCE 2 CONTOURS AND DRAW#
+#__________________________________________________________#
+# plot contours for group 2#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs5',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+#
+# draw from second posterior distribution#
+postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu2_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu2_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu2_keep[1,] = c(mu2_x,mu2_y)#
+#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 7 DATA AND SOURCES ONLY#
+#__________________________________________________________#
+# plot data and both sources#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs6',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 8 DATA AND SOURCES ONLY - WITHOUT LABELS#
+#__________________________________________________________#
+# plot data and both sources - without labels#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs7',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 9 ASSIGN NEW GROUPS#
+#__________________________________________________________#
+# assign new groups#
+for (i in 1:n) {#
+	logProb = dnorm(data_x[i],mean=c(mu1_x,mu2_x),sd=sigma, log=TRUE) + dnorm(data_y[i],mean=c(mu1_y,mu2_y),sd=sigma, log=TRUE)#
+	probVec = exp(logProb-max(logProb))#
+	group[i] = sample(2,1,prob=probVec)#
+}#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs8',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 10 NEW SOURCE I CONTOURS#
+#__________________________________________________________#
+# calculate and plot new first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+# plot new red contours#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs9',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 10 DRAW FROM NEW SOURCE I CONTOURS#
+#__________________________________________________________#
+#
+# draw from first posterior distribution#
+postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu1_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu1_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu1_keep[2,] = c(mu1_x,mu1_y)#
+#
+#plot change in red draw#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs10',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 11 NEW SOURCE 2 CONTOURS#
+#__________________________________________________________#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs11',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+#
+#points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 12 DRAW FROM NEW SOURCE#
+#__________________________________________________________#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs12',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+#
+# calculate and plot new first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+# draw from second posterior distribution#
+postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu2_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu2_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu2_keep[2,] = c(mu2_x,mu2_y)#
+points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+#
+lines(c(mu2_keep[1,1],mu2_keep[2,1]),c(mu2_keep[1,2],mu2_keep[2,2]),col="blue")#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 13 UPDATED SOURCE POSITIONS WITHOUT CONTOURS#
+#__________________________________________________________#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs13',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="white")#
+#
+plot(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude'points(data_x,data_y,pch=4,lwd=2)#
+#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+#
+lines(c(mu2_keep[1,1],mu2_keep[2,1]),c(mu2_keep[1,2],mu2_keep[2,2]),col="blue")#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOTs	 14 AND ON, LOOPING THROUGH GIBBS SAMPLER#
+#__________________________________________________________#
+#
+# continue looping through Gibbs sampler, plotting at certain points#
+plotSteps = c(3,4,5,10,100,1000)#
+zmat = zmat*0#
+counter=0#
+for (rep in 3:reps) {#
+	mu1_x = mu1_keep[rep-1,1]#
+	mu1_y = mu1_keep[rep-1,2]#
+	mu2_x = mu2_keep[rep-1,1]#
+	mu2_y = mu2_keep[rep-1,2]#
+	# update grouping#
+	for (i in 1:n) {#
+		logProb = dnorm(data_x[i],mean=c(mu1_x,mu2_x),sd=sigma, log=TRUE) + dnorm(data_y[i],mean=c(mu1_y,mu2_y),sd=sigma, log=TRUE)#
+		probVec = exp(logProb-max(logProb))#
+		group[i] = sample(2,1,prob=probVec)#
+	}#
+	# draw new means#
+	postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+	postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+	postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+	mu1_keep[rep,1] = rnorm(1,postmean_x,sd=sqrt(postvar))#
+	mu1_keep[rep,2] = rnorm(1,postmean_y,sd=sqrt(postvar))#
+#
+	tempmat = dnorm(xmat,postmean_x,sd=sqrt(postvar))*dnorm(ymat,postmean_y,sd=sqrt(postvar))#
+	zmat = zmat + tempmat/sum(tempmat)#
+#
+	postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+	postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+	postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+	mu2_keep[rep,1] = rnorm(1,postmean_x,sd=sqrt(postvar))#
+	mu2_keep[rep,2] = rnorm(1,postmean_y,sd=sqrt(postvar))#
+#
+	tempmat = dnorm(xmat,postmean_x,sd=sqrt(postvar))*dnorm(ymat,postmean_y,sd=sqrt(postvar))#
+	zmat = zmat + tempmat/sum(tempmat)#
+	if (sum(plotSteps==rep)>0) {#
+		counter = counter+1#
+		# plot data and both sources - without labels#
+		plotOn(active=plotToFile,fileroot,filestem1='Gibbs',fileindex=13+counter,type=filetype,res=fileres,width=filewidth,height=fileheight)#
+		plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+		lines(mu1_keep[1:rep,1],mu1_keep[1:rep,2],col="red")#
+		lines(mu2_keep[1:rep,1],mu2_keep[1:rep,2],col="blue")#
+		points(mu1_keep[rep,1],mu1_keep[rep,2],pch=20,col="red",cex=1.5)#
+		points(mu2_keep[rep,1],mu2_keep[rep,2],pch=20,col="blue",cex=1.5)#
+		points(data_x,data_y,pch=4,lwd=2,cex=1)#
+		plotOff(active=plotToFile)#
+		if (!plotToFile) {Sys.sleep(0.5)}#
+	}#
+}#
+#
+# plot final distribution#
+geoprofile = matrix(rank(zmat),nrow=nrow(zmat))#
+geoprofile2 = matSmooth(geoprofile,smoothSize)#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs',fileindex=13+counter+1,type=filetype,res=fileres,width=filewidth,height=fileheight)#
+image(xvec2,yvec2,t(geoprofile2),xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2,cex=1)#
+plotOff(active=plotToFile)#
+#
+plotOn(active=plotToFile,fileroot,filestem1='GibbsFinal',fileindex=13+counter+1,type=filetype,res=fileres,width=filewidth,height=fileheight)#
+image(xvec2,yvec2,t(geoprofile2),xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2,cex=1)#
+points(mu_x,mu_y,pch=15,col=c("blue","red"))#
+plotOff(active=plotToFile)
+plotToFile = FALSE
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs13',type=filetype,res=fileres,width=filewidth,height=fileheight)
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="white")
+plot(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude'points(data_x,data_y,pch=4,lwd=2)
+#__________________________________________________________#
+# PLOT 13 UPDATED SOURCE POSITIONS WITHOUT CONTOURS#
+#__________________________________________________________#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs13',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="white")#
+#
+plot(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude'points(data_x,data_y,pch=4,lwd=2)#
+#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+#
+lines(c(mu2_keep[1,1],mu2_keep[2,1]),c(mu2_keep[1,2],mu2_keep[2,2]),col="blue")#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="white")
+plot(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude'points(data_x,data_y,pch=4,lwd=2)
+plot(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude'points(data_x,data_y,pch=4,lwd=2)#
+#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")
+text(data_x,data_y,labels=group,pos=3)
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)
+mu1_keep
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")
+#__________________________________________________________#
+# PLOT 13 UPDATED SOURCE POSITIONS WITHOUT CONTOURS#
+#__________________________________________________________#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs13',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="white")#
+#
+plot(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude'points(data_x,data_y,pch=4,lwd=2)#
+#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+#
+lines(c(mu2_keep[1,1],mu2_keep[2,1]),c(mu2_keep[1,2],mu2_keep[2,2]),col="blue")#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)
+# Produce a series of plots, walking through the Gibbs sampler step by step.#
+#
+# --------------------------------------------------#
+#
+# start optional save-to-file function#
+plotOn = function(active=FALSE,fileroot='',filestem1='',filestem2='',fileindex='',type='pdf',width=6,height=6,res=300) {#
+	if (active) {#
+		if (type=='pdf') {#
+			pdf(file=paste(fileroot,filestem1,filestem2,fileindex,".pdf",sep=""), bg="white", width=width, height=height)#
+		}#
+		if (type=='png') {#
+			png(file=paste(fileroot,filestem1,filestem2,fileindex,".png",sep=""), bg="white", width=width*500, height=height*500,res=res)#
+		}#
+	}#
+}#
+#
+# end optional save-to-file function#
+plotOff = function(active=FALSE) {#
+	if (active) {#
+		dev.off()#
+	}#
+}#
+#
+# smooth a matrix#
+matSmooth = function(z,smoothSize) {#
+	newMat1 = matrix(0,nrow(z),smoothSize)#
+	for (i in 1:nrow(z)) {#
+		newMat1[i,] = spline(z[i,],n=smoothSize)$y#
+	}#
+	newMat2 = matrix(0,smoothSize,smoothSize)#
+	for (i in 1:smoothSize) {#
+		newMat2[,i] = spline(newMat1[,i],n=smoothSize)$y#
+	}#
+	return(newMat2)#
+}#
+#
+# --------------------------------------------------#
+#
+# parameters#
+L = 15#
+sigma = 4#
+tau = 10#
+#
+mu_x = c(-5,5)#
+mu_y = c(5,-5)#
+#
+#mu_x = c(-1,4)#
+#mu_y = c(3,-3)#
+true_group = c(rep(1,5),rep(2,5))#
+#
+group = true_group#
+n = length(group)#
+reps = 1000#
+#
+# save to...#
+fileroot = "~/Desktop/R input and output/Gibbs/"#
+filetype = 'png'#
+fileres = 200#
+filewidth=2#
+fileheight=2#
+plotToFile = TRUE#
+#
+data_x = rnorm(n,mean=mu_x[group],sd=sigma)#
+data_y = rnorm(n,mean=mu_y[group],sd=sigma)#
+#
+gridsize = 101#
+smoothSize = 500#
+xvec = seq(-L,L,l=gridsize)#
+yvec = seq(-L,L,l=gridsize)#
+xvec2 = spline(xvec,n=smoothSize)$y#
+yvec2 = spline(yvec,n=smoothSize)$y#
+xmat = outer(rep(1,gridsize),xvec)#
+ymat = outer(yvec,rep(1,gridsize))#
+#
+mu1_keep = matrix(0,reps,2)#
+mu2_keep = matrix(0,reps,2)#
+#
+# calculate and plot initial (random) grouping#
+group = sample(2,n,rep=T)#
+#
+#__________________________________________________________#
+# PLOT 1 RAW DATA#
+#__________________________________________________________#
+# data no groups#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs0',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 2 WITH RANDOM LABELS#
+#__________________________________________________________#
+# plot with random labels#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs1',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+# calculate and plot first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+#__________________________________________________________#
+# PLOT 3 SOURCE 1 CONTOURS#
+#__________________________________________________________#
+# plot contours for group 1#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs2',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 4 SOURCE 1 CONTOURS AND DRAW#
+#__________________________________________________________#
+# draw from first posterior distribution#
+postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu1_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu1_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu1_keep[1,] = c(mu1_x,mu1_y)#
+#
+# plot contours and draw for group 1#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs3',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 5 SOURCE 2 CONTOURS#
+#__________________________________________________________#
+#
+# plot contours for group 2#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs4',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+points(data_x,data_y,pch=4,lwd=2)#
+#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 6 SOURCE 2 CONTOURS AND DRAW#
+#__________________________________________________________#
+# plot contours for group 2#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs5',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+#
+# draw from second posterior distribution#
+postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu2_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu2_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu2_keep[1,] = c(mu2_x,mu2_y)#
+#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 7 DATA AND SOURCES ONLY#
+#__________________________________________________________#
+# plot data and both sources#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs6',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 8 DATA AND SOURCES ONLY - WITHOUT LABELS#
+#__________________________________________________________#
+# plot data and both sources - without labels#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs7',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 9 ASSIGN NEW GROUPS#
+#__________________________________________________________#
+# assign new groups#
+for (i in 1:n) {#
+	logProb = dnorm(data_x[i],mean=c(mu1_x,mu2_x),sd=sigma, log=TRUE) + dnorm(data_y[i],mean=c(mu1_y,mu2_y),sd=sigma, log=TRUE)#
+	probVec = exp(logProb-max(logProb))#
+	group[i] = sample(2,1,prob=probVec)#
+}#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs8',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 10 NEW SOURCE I CONTOURS#
+#__________________________________________________________#
+# calculate and plot new first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+# plot new red contours#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs9',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 10 DRAW FROM NEW SOURCE I CONTOURS#
+#__________________________________________________________#
+#
+# draw from first posterior distribution#
+postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu1_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu1_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu1_keep[2,] = c(mu1_x,mu1_y)#
+#
+#plot change in red draw#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs10',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 11 NEW SOURCE 2 CONTOURS#
+#__________________________________________________________#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs11',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+#
+#points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 12 DRAW FROM NEW SOURCE#
+#__________________________________________________________#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs12',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+#
+# calculate and plot new first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+# draw from second posterior distribution#
+postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu2_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu2_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu2_keep[2,] = c(mu2_x,mu2_y)#
+points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+#
+lines(c(mu2_keep[1,1],mu2_keep[2,1]),c(mu2_keep[1,2],mu2_keep[2,2]),col="blue")#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 13 UPDATED SOURCE POSITIONS WITHOUT CONTOURS#
+#__________________________________________________________#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs13',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="white")#
+#
+plot(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude'points(data_x,data_y,pch=4,lwd=2)#
+#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+#
+lines(c(mu2_keep[1,1],mu2_keep[2,1]),c(mu2_keep[1,2],mu2_keep[2,2]),col="blue")#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOTs	 14 AND ON, LOOPING THROUGH GIBBS SAMPLER#
+#__________________________________________________________#
+#
+# continue looping through Gibbs sampler, plotting at certain points#
+plotSteps = c(3,4,5,10,100,1000)#
+zmat = zmat*0#
+counter=0#
+for (rep in 3:reps) {#
+	mu1_x = mu1_keep[rep-1,1]#
+	mu1_y = mu1_keep[rep-1,2]#
+	mu2_x = mu2_keep[rep-1,1]#
+	mu2_y = mu2_keep[rep-1,2]#
+	# update grouping#
+	for (i in 1:n) {#
+		logProb = dnorm(data_x[i],mean=c(mu1_x,mu2_x),sd=sigma, log=TRUE) + dnorm(data_y[i],mean=c(mu1_y,mu2_y),sd=sigma, log=TRUE)#
+		probVec = exp(logProb-max(logProb))#
+		group[i] = sample(2,1,prob=probVec)#
+	}#
+	# draw new means#
+	postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+	postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+	postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+	mu1_keep[rep,1] = rnorm(1,postmean_x,sd=sqrt(postvar))#
+	mu1_keep[rep,2] = rnorm(1,postmean_y,sd=sqrt(postvar))#
+#
+	tempmat = dnorm(xmat,postmean_x,sd=sqrt(postvar))*dnorm(ymat,postmean_y,sd=sqrt(postvar))#
+	zmat = zmat + tempmat/sum(tempmat)#
+#
+	postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+	postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+	postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+	mu2_keep[rep,1] = rnorm(1,postmean_x,sd=sqrt(postvar))#
+	mu2_keep[rep,2] = rnorm(1,postmean_y,sd=sqrt(postvar))#
+#
+	tempmat = dnorm(xmat,postmean_x,sd=sqrt(postvar))*dnorm(ymat,postmean_y,sd=sqrt(postvar))#
+	zmat = zmat + tempmat/sum(tempmat)#
+	if (sum(plotSteps==rep)>0) {#
+		counter = counter+1#
+		# plot data and both sources - without labels#
+		plotOn(active=plotToFile,fileroot,filestem1='Gibbs',fileindex=13+counter,type=filetype,res=fileres,width=filewidth,height=fileheight)#
+		plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+		lines(mu1_keep[1:rep,1],mu1_keep[1:rep,2],col="red")#
+		lines(mu2_keep[1:rep,1],mu2_keep[1:rep,2],col="blue")#
+		points(mu1_keep[rep,1],mu1_keep[rep,2],pch=20,col="red",cex=1.5)#
+		points(mu2_keep[rep,1],mu2_keep[rep,2],pch=20,col="blue",cex=1.5)#
+		points(data_x,data_y,pch=4,lwd=2,cex=1)#
+		plotOff(active=plotToFile)#
+		if (!plotToFile) {Sys.sleep(0.5)}#
+	}#
+}#
+#
+# plot final distribution#
+geoprofile = matrix(rank(zmat),nrow=nrow(zmat))#
+geoprofile2 = matSmooth(geoprofile,smoothSize)#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs',fileindex=13+counter+1,type=filetype,res=fileres,width=filewidth,height=fileheight)#
+image(xvec2,yvec2,t(geoprofile2),xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2,cex=1)#
+plotOff(active=plotToFile)#
+#
+plotOn(active=plotToFile,fileroot,filestem1='GibbsFinal',fileindex=13+counter+1,type=filetype,res=fileres,width=filewidth,height=fileheight)#
+image(xvec2,yvec2,t(geoprofile2),xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2,cex=1)#
+points(mu_x,mu_y,pch=15,col=c("blue","red"))#
+plotOff(active=plotToFile)
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs13',type=filetype,res=fileres,width=filewidth,height=fileheight)
+plot(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude'points(data_x,data_y,pch=4,lwd=2)
+mu2_keep
+# Produce a series of plots, walking through the Gibbs sampler step by step.#
+#
+# --------------------------------------------------#
+#
+# start optional save-to-file function#
+plotOn = function(active=FALSE,fileroot='',filestem1='',filestem2='',fileindex='',type='pdf',width=6,height=6,res=300) {#
+	if (active) {#
+		if (type=='pdf') {#
+			pdf(file=paste(fileroot,filestem1,filestem2,fileindex,".pdf",sep=""), bg="white", width=width, height=height)#
+		}#
+		if (type=='png') {#
+			png(file=paste(fileroot,filestem1,filestem2,fileindex,".png",sep=""), bg="white", width=width*500, height=height*500,res=res)#
+		}#
+	}#
+}#
+#
+# end optional save-to-file function#
+plotOff = function(active=FALSE) {#
+	if (active) {#
+		dev.off()#
+	}#
+}#
+#
+# smooth a matrix#
+matSmooth = function(z,smoothSize) {#
+	newMat1 = matrix(0,nrow(z),smoothSize)#
+	for (i in 1:nrow(z)) {#
+		newMat1[i,] = spline(z[i,],n=smoothSize)$y#
+	}#
+	newMat2 = matrix(0,smoothSize,smoothSize)#
+	for (i in 1:smoothSize) {#
+		newMat2[,i] = spline(newMat1[,i],n=smoothSize)$y#
+	}#
+	return(newMat2)#
+}#
+#
+# --------------------------------------------------#
+#
+# parameters#
+L = 15#
+sigma = 4#
+tau = 10#
+#
+mu_x = c(-5,5)#
+mu_y = c(5,-5)#
+#
+#mu_x = c(-1,4)#
+#mu_y = c(3,-3)#
+true_group = c(rep(1,5),rep(2,5))#
+#
+group = true_group#
+n = length(group)#
+reps = 1000#
+#
+# save to...#
+fileroot = "~/Desktop/R input and output/Gibbs/"#
+filetype = 'png'#
+fileres = 200#
+filewidth=2#
+fileheight=2#
+plotToFile = FALSE#
+#
+data_x = rnorm(n,mean=mu_x[group],sd=sigma)#
+data_y = rnorm(n,mean=mu_y[group],sd=sigma)#
+#
+gridsize = 101#
+smoothSize = 500#
+xvec = seq(-L,L,l=gridsize)#
+yvec = seq(-L,L,l=gridsize)#
+xvec2 = spline(xvec,n=smoothSize)$y#
+yvec2 = spline(yvec,n=smoothSize)$y#
+xmat = outer(rep(1,gridsize),xvec)#
+ymat = outer(yvec,rep(1,gridsize))#
+#
+mu1_keep = matrix(0,reps,2)#
+mu2_keep = matrix(0,reps,2)#
+#
+# calculate and plot initial (random) grouping#
+group = sample(2,n,rep=T)#
+#
+#__________________________________________________________#
+# PLOT 1 RAW DATA#
+#__________________________________________________________#
+# data no groups#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs0',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 2 WITH RANDOM LABELS#
+#__________________________________________________________#
+# plot with random labels#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs1',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+# calculate and plot first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+#__________________________________________________________#
+# PLOT 3 SOURCE 1 CONTOURS#
+#__________________________________________________________#
+# plot contours for group 1#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs2',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 4 SOURCE 1 CONTOURS AND DRAW#
+#__________________________________________________________#
+# draw from first posterior distribution#
+postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu1_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu1_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu1_keep[1,] = c(mu1_x,mu1_y)#
+#
+# plot contours and draw for group 1#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs3',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 5 SOURCE 2 CONTOURS#
+#__________________________________________________________#
+#
+# plot contours for group 2#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs4',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+points(data_x,data_y,pch=4,lwd=2)#
+#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 6 SOURCE 2 CONTOURS AND DRAW#
+#__________________________________________________________#
+# plot contours for group 2#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs5',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+#
+# draw from second posterior distribution#
+postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu2_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu2_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu2_keep[1,] = c(mu2_x,mu2_y)#
+#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 7 DATA AND SOURCES ONLY#
+#__________________________________________________________#
+# plot data and both sources#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs6',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 8 DATA AND SOURCES ONLY - WITHOUT LABELS#
+#__________________________________________________________#
+# plot data and both sources - without labels#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs7',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 9 ASSIGN NEW GROUPS#
+#__________________________________________________________#
+# assign new groups#
+for (i in 1:n) {#
+	logProb = dnorm(data_x[i],mean=c(mu1_x,mu2_x),sd=sigma, log=TRUE) + dnorm(data_y[i],mean=c(mu1_y,mu2_y),sd=sigma, log=TRUE)#
+	probVec = exp(logProb-max(logProb))#
+	group[i] = sample(2,1,prob=probVec)#
+}#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs8',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 10 NEW SOURCE I CONTOURS#
+#__________________________________________________________#
+# calculate and plot new first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+# plot new red contours#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs9',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 10 DRAW FROM NEW SOURCE I CONTOURS#
+#__________________________________________________________#
+#
+# draw from first posterior distribution#
+postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu1_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu1_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu1_keep[2,] = c(mu1_x,mu1_y)#
+#
+#plot change in red draw#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs10',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+plotOff(active=plotToFile)
+#__________________________________________________________#
+# PLOT 11 NEW SOURCE 2 CONTOURS#
+#__________________________________________________________#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs11',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+#
+#points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+#
+#points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")
+# Produce a series of plots, walking through the Gibbs sampler step by step.#
+#
+# --------------------------------------------------#
+#
+# start optional save-to-file function#
+plotOn = function(active=FALSE,fileroot='',filestem1='',filestem2='',fileindex='',type='pdf',width=6,height=6,res=300) {#
+	if (active) {#
+		if (type=='pdf') {#
+			pdf(file=paste(fileroot,filestem1,filestem2,fileindex,".pdf",sep=""), bg="white", width=width, height=height)#
+		}#
+		if (type=='png') {#
+			png(file=paste(fileroot,filestem1,filestem2,fileindex,".png",sep=""), bg="white", width=width*500, height=height*500,res=res)#
+		}#
+	}#
+}#
+#
+# end optional save-to-file function#
+plotOff = function(active=FALSE) {#
+	if (active) {#
+		dev.off()#
+	}#
+}#
+#
+# smooth a matrix#
+matSmooth = function(z,smoothSize) {#
+	newMat1 = matrix(0,nrow(z),smoothSize)#
+	for (i in 1:nrow(z)) {#
+		newMat1[i,] = spline(z[i,],n=smoothSize)$y#
+	}#
+	newMat2 = matrix(0,smoothSize,smoothSize)#
+	for (i in 1:smoothSize) {#
+		newMat2[,i] = spline(newMat1[,i],n=smoothSize)$y#
+	}#
+	return(newMat2)#
+}#
+#
+# --------------------------------------------------#
+#
+# parameters#
+L = 15#
+sigma = 4#
+tau = 10#
+#
+mu_x = c(-5,5)#
+mu_y = c(5,-5)#
+#
+#mu_x = c(-1,4)#
+#mu_y = c(3,-3)#
+true_group = c(rep(1,5),rep(2,5))#
+#
+group = true_group#
+n = length(group)#
+reps = 1000#
+#
+# save to...#
+fileroot = "~/Desktop/R input and output/Gibbs/"#
+filetype = 'png'#
+fileres = 200#
+filewidth=2#
+fileheight=2#
+plotToFile = FALSE#
+#
+data_x = rnorm(n,mean=mu_x[group],sd=sigma)#
+data_y = rnorm(n,mean=mu_y[group],sd=sigma)#
+#
+gridsize = 101#
+smoothSize = 500#
+xvec = seq(-L,L,l=gridsize)#
+yvec = seq(-L,L,l=gridsize)#
+xvec2 = spline(xvec,n=smoothSize)$y#
+yvec2 = spline(yvec,n=smoothSize)$y#
+xmat = outer(rep(1,gridsize),xvec)#
+ymat = outer(yvec,rep(1,gridsize))#
+#
+mu1_keep = matrix(0,reps,2)#
+mu2_keep = matrix(0,reps,2)#
+#
+# calculate and plot initial (random) grouping#
+group = sample(2,n,rep=T)#
+#
+#__________________________________________________________#
+# PLOT 1 RAW DATA#
+#__________________________________________________________#
+# data no groups#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs0',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 2 WITH RANDOM LABELS#
+#__________________________________________________________#
+# plot with random labels#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs1',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+# calculate and plot first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+#__________________________________________________________#
+# PLOT 3 SOURCE 1 CONTOURS#
+#__________________________________________________________#
+# plot contours for group 1#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs2',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 4 SOURCE 1 CONTOURS AND DRAW#
+#__________________________________________________________#
+# draw from first posterior distribution#
+postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu1_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu1_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu1_keep[1,] = c(mu1_x,mu1_y)#
+#
+# plot contours and draw for group 1#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs3',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 5 SOURCE 2 CONTOURS#
+#__________________________________________________________#
+#
+# plot contours for group 2#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs4',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+points(data_x,data_y,pch=4,lwd=2)#
+#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 6 SOURCE 2 CONTOURS AND DRAW#
+#__________________________________________________________#
+# plot contours for group 2#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs5',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+#
+# draw from second posterior distribution#
+postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu2_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu2_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu2_keep[1,] = c(mu2_x,mu2_y)#
+#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 7 DATA AND SOURCES ONLY#
+#__________________________________________________________#
+# plot data and both sources#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs6',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 8 DATA AND SOURCES ONLY - WITHOUT LABELS#
+#__________________________________________________________#
+# plot data and both sources - without labels#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs7',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 9 ASSIGN NEW GROUPS#
+#__________________________________________________________#
+# assign new groups#
+for (i in 1:n) {#
+	logProb = dnorm(data_x[i],mean=c(mu1_x,mu2_x),sd=sigma, log=TRUE) + dnorm(data_y[i],mean=c(mu1_y,mu2_y),sd=sigma, log=TRUE)#
+	probVec = exp(logProb-max(logProb))#
+	group[i] = sample(2,1,prob=probVec)#
+}#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs8',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 10 NEW SOURCE I CONTOURS#
+#__________________________________________________________#
+# calculate and plot new first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+# plot new red contours#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs9',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 10 DRAW FROM NEW SOURCE I CONTOURS#
+#__________________________________________________________#
+#
+# draw from first posterior distribution#
+postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu1_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu1_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu1_keep[2,] = c(mu1_x,mu1_y)#
+#
+#plot change in red draw#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs10',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 11 NEW SOURCE 2 CONTOURS#
+#__________________________________________________________#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs11',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+#
+#points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)
+# calculate and plot new first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")
+points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)
+points(data_x,data_y,pch=4,lwd=2)
+text(data_x,data_y,labels=group,pos=3)
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")
+# draw from second posterior distribution#
+postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu2_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu2_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu2_keep[2,] = c(mu2_x,mu2_y)#
+points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)
+points(data_x,data_y,pch=4,lwd=2)
+text(data_x,data_y,labels=group,pos=3)
+lines(c(mu2_keep[1,1],mu2_keep[2,1]),c(mu2_keep[1,2],mu2_keep[2,2]),col="blue")
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)
+# Produce a series of plots, walking through the Gibbs sampler step by step.#
+#
+# --------------------------------------------------#
+#
+# start optional save-to-file function#
+plotOn = function(active=FALSE,fileroot='',filestem1='',filestem2='',fileindex='',type='pdf',width=6,height=6,res=300) {#
+	if (active) {#
+		if (type=='pdf') {#
+			pdf(file=paste(fileroot,filestem1,filestem2,fileindex,".pdf",sep=""), bg="white", width=width, height=height)#
+		}#
+		if (type=='png') {#
+			png(file=paste(fileroot,filestem1,filestem2,fileindex,".png",sep=""), bg="white", width=width*500, height=height*500,res=res)#
+		}#
+	}#
+}#
+#
+# end optional save-to-file function#
+plotOff = function(active=FALSE) {#
+	if (active) {#
+		dev.off()#
+	}#
+}#
+#
+# smooth a matrix#
+matSmooth = function(z,smoothSize) {#
+	newMat1 = matrix(0,nrow(z),smoothSize)#
+	for (i in 1:nrow(z)) {#
+		newMat1[i,] = spline(z[i,],n=smoothSize)$y#
+	}#
+	newMat2 = matrix(0,smoothSize,smoothSize)#
+	for (i in 1:smoothSize) {#
+		newMat2[,i] = spline(newMat1[,i],n=smoothSize)$y#
+	}#
+	return(newMat2)#
+}#
+#
+# --------------------------------------------------#
+#
+# parameters#
+L = 15#
+sigma = 4#
+tau = 10#
+#
+mu_x = c(-5,5)#
+mu_y = c(5,-5)#
+#
+#mu_x = c(-1,4)#
+#mu_y = c(3,-3)#
+true_group = c(rep(1,5),rep(2,5))#
+#
+group = true_group#
+n = length(group)#
+reps = 1000#
+#
+# save to...#
+fileroot = "~/Desktop/R input and output/Gibbs/"#
+filetype = 'png'#
+fileres = 200#
+filewidth=2#
+fileheight=2#
+plotToFile = TRUE#
+#
+data_x = rnorm(n,mean=mu_x[group],sd=sigma)#
+data_y = rnorm(n,mean=mu_y[group],sd=sigma)#
+#
+gridsize = 101#
+smoothSize = 500#
+xvec = seq(-L,L,l=gridsize)#
+yvec = seq(-L,L,l=gridsize)#
+xvec2 = spline(xvec,n=smoothSize)$y#
+yvec2 = spline(yvec,n=smoothSize)$y#
+xmat = outer(rep(1,gridsize),xvec)#
+ymat = outer(yvec,rep(1,gridsize))#
+#
+mu1_keep = matrix(0,reps,2)#
+mu2_keep = matrix(0,reps,2)#
+#
+# calculate and plot initial (random) grouping#
+group = sample(2,n,rep=T)#
+#
+#__________________________________________________________#
+# PLOT 1 RAW DATA#
+#__________________________________________________________#
+# data no groups#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs0',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 2 WITH RANDOM LABELS#
+#__________________________________________________________#
+# plot with random labels#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs1',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+# calculate and plot first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+#__________________________________________________________#
+# PLOT 3 SOURCE 1 CONTOURS#
+#__________________________________________________________#
+# plot contours for group 1#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs2',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 4 SOURCE 1 CONTOURS AND DRAW#
+#__________________________________________________________#
+# draw from first posterior distribution#
+postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu1_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu1_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu1_keep[1,] = c(mu1_x,mu1_y)#
+#
+# plot contours and draw for group 1#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs3',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 5 SOURCE 2 CONTOURS#
+#__________________________________________________________#
+#
+# plot contours for group 2#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs4',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+points(data_x,data_y,pch=4,lwd=2)#
+#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 6 SOURCE 2 CONTOURS AND DRAW#
+#__________________________________________________________#
+# plot contours for group 2#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs5',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+#
+# draw from second posterior distribution#
+postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu2_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu2_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu2_keep[1,] = c(mu2_x,mu2_y)#
+#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 7 DATA AND SOURCES ONLY#
+#__________________________________________________________#
+# plot data and both sources#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs6',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 8 DATA AND SOURCES ONLY - WITHOUT LABELS#
+#__________________________________________________________#
+# plot data and both sources - without labels#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs7',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 9 ASSIGN NEW GROUPS#
+#__________________________________________________________#
+# assign new groups#
+for (i in 1:n) {#
+	logProb = dnorm(data_x[i],mean=c(mu1_x,mu2_x),sd=sigma, log=TRUE) + dnorm(data_y[i],mean=c(mu1_y,mu2_y),sd=sigma, log=TRUE)#
+	probVec = exp(logProb-max(logProb))#
+	group[i] = sample(2,1,prob=probVec)#
+}#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs8',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 10 NEW SOURCE I CONTOURS#
+#__________________________________________________________#
+# calculate and plot new first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+# plot new red contours#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs9',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 10 DRAW FROM NEW SOURCE I CONTOURS#
+#__________________________________________________________#
+#
+# draw from first posterior distribution#
+postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu1_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu1_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu1_keep[2,] = c(mu1_x,mu1_y)#
+#
+#plot change in red draw#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs10',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 11 NEW SOURCE 2 CONTOURS#
+#__________________________________________________________#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs11',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+#
+#points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 12 DRAW FROM NEW SOURCE#
+#__________________________________________________________#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs12',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+#
+# calculate and plot new first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+# draw from second posterior distribution#
+postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu2_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu2_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu2_keep[2,] = c(mu2_x,mu2_y)#
+# points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+#
+lines(c(mu2_keep[1,1],mu2_keep[2,1]),c(mu2_keep[1,2],mu2_keep[2,2]),col="blue")#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 13 UPDATED SOURCE POSITIONS WITHOUT CONTOURS#
+#__________________________________________________________#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs13',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="white")#
+#
+plot(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude'points(data_x,data_y,pch=4,lwd=2)#
+#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+#
+lines(c(mu2_keep[1,1],mu2_keep[2,1]),c(mu2_keep[1,2],mu2_keep[2,2]),col="blue")#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOTs	 14 AND ON, LOOPING THROUGH GIBBS SAMPLER#
+#__________________________________________________________#
+#
+# continue looping through Gibbs sampler, plotting at certain points#
+plotSteps = c(3,4,5,10,100,1000)#
+zmat = zmat*0#
+counter=0#
+for (rep in 3:reps) {#
+	mu1_x = mu1_keep[rep-1,1]#
+	mu1_y = mu1_keep[rep-1,2]#
+	mu2_x = mu2_keep[rep-1,1]#
+	mu2_y = mu2_keep[rep-1,2]#
+	# update grouping#
+	for (i in 1:n) {#
+		logProb = dnorm(data_x[i],mean=c(mu1_x,mu2_x),sd=sigma, log=TRUE) + dnorm(data_y[i],mean=c(mu1_y,mu2_y),sd=sigma, log=TRUE)#
+		probVec = exp(logProb-max(logProb))#
+		group[i] = sample(2,1,prob=probVec)#
+	}#
+	# draw new means#
+	postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+	postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+	postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+	mu1_keep[rep,1] = rnorm(1,postmean_x,sd=sqrt(postvar))#
+	mu1_keep[rep,2] = rnorm(1,postmean_y,sd=sqrt(postvar))#
+#
+	tempmat = dnorm(xmat,postmean_x,sd=sqrt(postvar))*dnorm(ymat,postmean_y,sd=sqrt(postvar))#
+	zmat = zmat + tempmat/sum(tempmat)#
+#
+	postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+	postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+	postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+	mu2_keep[rep,1] = rnorm(1,postmean_x,sd=sqrt(postvar))#
+	mu2_keep[rep,2] = rnorm(1,postmean_y,sd=sqrt(postvar))#
+#
+	tempmat = dnorm(xmat,postmean_x,sd=sqrt(postvar))*dnorm(ymat,postmean_y,sd=sqrt(postvar))#
+	zmat = zmat + tempmat/sum(tempmat)#
+	if (sum(plotSteps==rep)>0) {#
+		counter = counter+1#
+		# plot data and both sources - without labels#
+		plotOn(active=plotToFile,fileroot,filestem1='Gibbs',fileindex=13+counter,type=filetype,res=fileres,width=filewidth,height=fileheight)#
+		plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+		lines(mu1_keep[1:rep,1],mu1_keep[1:rep,2],col="red")#
+		lines(mu2_keep[1:rep,1],mu2_keep[1:rep,2],col="blue")#
+		points(mu1_keep[rep,1],mu1_keep[rep,2],pch=20,col="red",cex=1.5)#
+		points(mu2_keep[rep,1],mu2_keep[rep,2],pch=20,col="blue",cex=1.5)#
+		points(data_x,data_y,pch=4,lwd=2,cex=1)#
+		plotOff(active=plotToFile)#
+		if (!plotToFile) {Sys.sleep(0.5)}#
+	}#
+}#
+#
+# plot final distribution#
+geoprofile = matrix(rank(zmat),nrow=nrow(zmat))#
+geoprofile2 = matSmooth(geoprofile,smoothSize)#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs',fileindex=13+counter+1,type=filetype,res=fileres,width=filewidth,height=fileheight)#
+image(xvec2,yvec2,t(geoprofile2),xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2,cex=1)#
+plotOff(active=plotToFile)#
+#
+plotOn(active=plotToFile,fileroot,filestem1='GibbsFinal',fileindex=13+counter+1,type=filetype,res=fileres,width=filewidth,height=fileheight)#
+image(xvec2,yvec2,t(geoprofile2),xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2,cex=1)#
+points(mu_x,mu_y,pch=15,col=c("blue","red"))#
+plotOff(active=plotToFile)
+# Produce a series of plots, walking through the Gibbs sampler step by step.#
+#
+# --------------------------------------------------#
+#
+# start optional save-to-file function#
+plotOn = function(active=FALSE,fileroot='',filestem1='',filestem2='',fileindex='',type='pdf',width=6,height=6,res=300) {#
+	if (active) {#
+		if (type=='pdf') {#
+			pdf(file=paste(fileroot,filestem1,filestem2,fileindex,".pdf",sep=""), bg="white", width=width, height=height)#
+		}#
+		if (type=='png') {#
+			png(file=paste(fileroot,filestem1,filestem2,fileindex,".png",sep=""), bg="white", width=width*500, height=height*500,res=res)#
+		}#
+	}#
+}#
+#
+# end optional save-to-file function#
+plotOff = function(active=FALSE) {#
+	if (active) {#
+		dev.off()#
+	}#
+}#
+#
+# smooth a matrix#
+matSmooth = function(z,smoothSize) {#
+	newMat1 = matrix(0,nrow(z),smoothSize)#
+	for (i in 1:nrow(z)) {#
+		newMat1[i,] = spline(z[i,],n=smoothSize)$y#
+	}#
+	newMat2 = matrix(0,smoothSize,smoothSize)#
+	for (i in 1:smoothSize) {#
+		newMat2[,i] = spline(newMat1[,i],n=smoothSize)$y#
+	}#
+	return(newMat2)#
+}#
+#
+# --------------------------------------------------#
+#
+# parameters#
+L = 15#
+sigma = 4#
+tau = 10#
+#
+mu_x = c(-5,5)#
+mu_y = c(5,-5)#
+#
+#mu_x = c(-1,4)#
+#mu_y = c(3,-3)#
+true_group = c(rep(1,5),rep(2,5))#
+#
+group = true_group#
+n = length(group)#
+reps = 1000#
+#
+# save to...#
+fileroot = "~/Desktop/R input and output/Gibbs/"#
+filetype = 'png'#
+fileres = 200#
+filewidth=2#
+fileheight=2#
+plotToFile = TRUE#
+#
+data_x = rnorm(n,mean=mu_x[group],sd=sigma)#
+data_y = rnorm(n,mean=mu_y[group],sd=sigma)#
+#
+gridsize = 101#
+smoothSize = 500#
+xvec = seq(-L,L,l=gridsize)#
+yvec = seq(-L,L,l=gridsize)#
+xvec2 = spline(xvec,n=smoothSize)$y#
+yvec2 = spline(yvec,n=smoothSize)$y#
+xmat = outer(rep(1,gridsize),xvec)#
+ymat = outer(yvec,rep(1,gridsize))#
+#
+mu1_keep = matrix(0,reps,2)#
+mu2_keep = matrix(0,reps,2)#
+#
+# calculate and plot initial (random) grouping#
+group = sample(2,n,rep=T)#
+#
+#__________________________________________________________#
+# PLOT 1 RAW DATA#
+#__________________________________________________________#
+# data no groups#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs0',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 2 WITH RANDOM LABELS#
+#__________________________________________________________#
+# plot with random labels#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs1',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+# calculate and plot first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+#__________________________________________________________#
+# PLOT 3 SOURCE 1 CONTOURS#
+#__________________________________________________________#
+# plot contours for group 1#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs2',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 4 SOURCE 1 CONTOURS AND DRAW#
+#__________________________________________________________#
+# draw from first posterior distribution#
+postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu1_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu1_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu1_keep[1,] = c(mu1_x,mu1_y)#
+#
+# plot contours and draw for group 1#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs3',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 5 SOURCE 2 CONTOURS#
+#__________________________________________________________#
+#
+# plot contours for group 2#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs4',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+points(data_x,data_y,pch=4,lwd=2)#
+#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 6 SOURCE 2 CONTOURS AND DRAW#
+#__________________________________________________________#
+# plot contours for group 2#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs5',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+#
+# draw from second posterior distribution#
+postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu2_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu2_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu2_keep[1,] = c(mu2_x,mu2_y)#
+#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 7 DATA AND SOURCES ONLY#
+#__________________________________________________________#
+# plot data and both sources#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs6',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 8 DATA AND SOURCES ONLY - WITHOUT LABELS#
+#__________________________________________________________#
+# plot data and both sources - without labels#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs7',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 9 ASSIGN NEW GROUPS#
+#__________________________________________________________#
+# assign new groups#
+for (i in 1:n) {#
+	logProb = dnorm(data_x[i],mean=c(mu1_x,mu2_x),sd=sigma, log=TRUE) + dnorm(data_y[i],mean=c(mu1_y,mu2_y),sd=sigma, log=TRUE)#
+	probVec = exp(logProb-max(logProb))#
+	group[i] = sample(2,1,prob=probVec)#
+}#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs8',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 10 NEW SOURCE I CONTOURS#
+#__________________________________________________________#
+# calculate and plot new first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+# plot new red contours#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs9',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)
+# Produce a series of plots, walking through the Gibbs sampler step by step.#
+#
+# --------------------------------------------------#
+#
+# start optional save-to-file function#
+plotOn = function(active=FALSE,fileroot='',filestem1='',filestem2='',fileindex='',type='pdf',width=6,height=6,res=300) {#
+	if (active) {#
+		if (type=='pdf') {#
+			pdf(file=paste(fileroot,filestem1,filestem2,fileindex,".pdf",sep=""), bg="white", width=width, height=height)#
+		}#
+		if (type=='png') {#
+			png(file=paste(fileroot,filestem1,filestem2,fileindex,".png",sep=""), bg="white", width=width*500, height=height*500,res=res)#
+		}#
+	}#
+}#
+#
+# end optional save-to-file function#
+plotOff = function(active=FALSE) {#
+	if (active) {#
+		dev.off()#
+	}#
+}#
+#
+# smooth a matrix#
+matSmooth = function(z,smoothSize) {#
+	newMat1 = matrix(0,nrow(z),smoothSize)#
+	for (i in 1:nrow(z)) {#
+		newMat1[i,] = spline(z[i,],n=smoothSize)$y#
+	}#
+	newMat2 = matrix(0,smoothSize,smoothSize)#
+	for (i in 1:smoothSize) {#
+		newMat2[,i] = spline(newMat1[,i],n=smoothSize)$y#
+	}#
+	return(newMat2)#
+}#
+#
+# --------------------------------------------------#
+#
+# parameters#
+L = 15#
+sigma = 4#
+tau = 10#
+#
+mu_x = c(-5,5)#
+mu_y = c(5,-5)#
+#
+#mu_x = c(-1,4)#
+#mu_y = c(3,-3)#
+true_group = c(rep(1,5),rep(2,5))#
+#
+group = true_group#
+n = length(group)#
+reps = 1000#
+#
+# save to...#
+fileroot = "~/Desktop/R input and output/Gibbs/"#
+filetype = 'png'#
+fileres = 200#
+filewidth=2#
+fileheight=2#
+plotToFile = FALSE#
+#
+data_x = rnorm(n,mean=mu_x[group],sd=sigma)#
+data_y = rnorm(n,mean=mu_y[group],sd=sigma)#
+#
+gridsize = 101#
+smoothSize = 500#
+xvec = seq(-L,L,l=gridsize)#
+yvec = seq(-L,L,l=gridsize)#
+xvec2 = spline(xvec,n=smoothSize)$y#
+yvec2 = spline(yvec,n=smoothSize)$y#
+xmat = outer(rep(1,gridsize),xvec)#
+ymat = outer(yvec,rep(1,gridsize))#
+#
+mu1_keep = matrix(0,reps,2)#
+mu2_keep = matrix(0,reps,2)#
+#
+# calculate and plot initial (random) grouping#
+group = sample(2,n,rep=T)#
+#
+#__________________________________________________________#
+# PLOT 1 RAW DATA#
+#__________________________________________________________#
+# data no groups#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs0',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 2 WITH RANDOM LABELS#
+#__________________________________________________________#
+# plot with random labels#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs1',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+# calculate and plot first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+#__________________________________________________________#
+# PLOT 3 SOURCE 1 CONTOURS#
+#__________________________________________________________#
+# plot contours for group 1#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs2',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 4 SOURCE 1 CONTOURS AND DRAW#
+#__________________________________________________________#
+# draw from first posterior distribution#
+postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu1_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu1_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu1_keep[1,] = c(mu1_x,mu1_y)#
+#
+# plot contours and draw for group 1#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs3',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 5 SOURCE 2 CONTOURS#
+#__________________________________________________________#
+#
+# plot contours for group 2#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs4',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+points(data_x,data_y,pch=4,lwd=2)#
+#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 6 SOURCE 2 CONTOURS AND DRAW#
+#__________________________________________________________#
+# plot contours for group 2#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs5',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+#
+# draw from second posterior distribution#
+postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu2_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu2_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu2_keep[1,] = c(mu2_x,mu2_y)#
+#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 7 DATA AND SOURCES ONLY#
+#__________________________________________________________#
+# plot data and both sources#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs6',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 8 DATA AND SOURCES ONLY - WITHOUT LABELS#
+#__________________________________________________________#
+# plot data and both sources - without labels#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs7',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 9 ASSIGN NEW GROUPS#
+#__________________________________________________________#
+# assign new groups#
+for (i in 1:n) {#
+	logProb = dnorm(data_x[i],mean=c(mu1_x,mu2_x),sd=sigma, log=TRUE) + dnorm(data_y[i],mean=c(mu1_y,mu2_y),sd=sigma, log=TRUE)#
+	probVec = exp(logProb-max(logProb))#
+	group[i] = sample(2,1,prob=probVec)#
+}#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs8',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 10 NEW SOURCE I CONTOURS#
+#__________________________________________________________#
+# calculate and plot new first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+# plot new red contours#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs9',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 10 DRAW FROM NEW SOURCE I CONTOURS#
+#__________________________________________________________#
+#
+# draw from first posterior distribution#
+postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu1_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu1_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu1_keep[2,] = c(mu1_x,mu1_y)#
+#
+#plot change in red draw#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs10',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+plotOff(active=plotToFile)
+# draw from first posterior distribution#
+postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu1_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu1_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu1_keep[2,] = c(mu1_x,mu1_y)
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")
+# Produce a series of plots, walking through the Gibbs sampler step by step.#
+#
+# --------------------------------------------------#
+#
+# start optional save-to-file function#
+plotOn = function(active=FALSE,fileroot='',filestem1='',filestem2='',fileindex='',type='pdf',width=6,height=6,res=300) {#
+	if (active) {#
+		if (type=='pdf') {#
+			pdf(file=paste(fileroot,filestem1,filestem2,fileindex,".pdf",sep=""), bg="white", width=width, height=height)#
+		}#
+		if (type=='png') {#
+			png(file=paste(fileroot,filestem1,filestem2,fileindex,".png",sep=""), bg="white", width=width*500, height=height*500,res=res)#
+		}#
+	}#
+}#
+#
+# end optional save-to-file function#
+plotOff = function(active=FALSE) {#
+	if (active) {#
+		dev.off()#
+	}#
+}#
+#
+# smooth a matrix#
+matSmooth = function(z,smoothSize) {#
+	newMat1 = matrix(0,nrow(z),smoothSize)#
+	for (i in 1:nrow(z)) {#
+		newMat1[i,] = spline(z[i,],n=smoothSize)$y#
+	}#
+	newMat2 = matrix(0,smoothSize,smoothSize)#
+	for (i in 1:smoothSize) {#
+		newMat2[,i] = spline(newMat1[,i],n=smoothSize)$y#
+	}#
+	return(newMat2)#
+}#
+#
+# --------------------------------------------------#
+#
+# parameters#
+L = 15#
+sigma = 4#
+tau = 10#
+#
+mu_x = c(-5,5)#
+mu_y = c(5,-5)#
+#
+#mu_x = c(-1,4)#
+#mu_y = c(3,-3)#
+true_group = c(rep(1,5),rep(2,5))#
+#
+group = true_group#
+n = length(group)#
+reps = 1000#
+#
+# save to...#
+fileroot = "~/Desktop/R input and output/Gibbs/"#
+filetype = 'png'#
+fileres = 200#
+filewidth=2#
+fileheight=2#
+plotToFile = FALSE#
+#
+data_x = rnorm(n,mean=mu_x[group],sd=sigma)#
+data_y = rnorm(n,mean=mu_y[group],sd=sigma)#
+#
+gridsize = 101#
+smoothSize = 500#
+xvec = seq(-L,L,l=gridsize)#
+yvec = seq(-L,L,l=gridsize)#
+xvec2 = spline(xvec,n=smoothSize)$y#
+yvec2 = spline(yvec,n=smoothSize)$y#
+xmat = outer(rep(1,gridsize),xvec)#
+ymat = outer(yvec,rep(1,gridsize))#
+#
+mu1_keep = matrix(0,reps,2)#
+mu2_keep = matrix(0,reps,2)#
+#
+# calculate and plot initial (random) grouping#
+group = sample(2,n,rep=T)#
+#
+#__________________________________________________________#
+# PLOT 1 RAW DATA#
+#__________________________________________________________#
+# data no groups#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs0',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 2 WITH RANDOM LABELS#
+#__________________________________________________________#
+# plot with random labels#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs1',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+# calculate and plot first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+#__________________________________________________________#
+# PLOT 3 SOURCE 1 CONTOURS#
+#__________________________________________________________#
+# plot contours for group 1#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs2',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 4 SOURCE 1 CONTOURS AND DRAW#
+#__________________________________________________________#
+# draw from first posterior distribution#
+postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu1_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu1_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu1_keep[1,] = c(mu1_x,mu1_y)#
+#
+# plot contours and draw for group 1#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs3',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 5 SOURCE 2 CONTOURS#
+#__________________________________________________________#
+#
+# plot contours for group 2#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs4',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+points(data_x,data_y,pch=4,lwd=2)#
+#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 6 SOURCE 2 CONTOURS AND DRAW#
+#__________________________________________________________#
+# plot contours for group 2#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs5',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+#
+# draw from second posterior distribution#
+postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu2_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu2_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu2_keep[1,] = c(mu2_x,mu2_y)#
+#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 7 DATA AND SOURCES ONLY#
+#__________________________________________________________#
+# plot data and both sources#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs6',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 8 DATA AND SOURCES ONLY - WITHOUT LABELS#
+#__________________________________________________________#
+# plot data and both sources - without labels#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs7',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 9 ASSIGN NEW GROUPS#
+#__________________________________________________________#
+# assign new groups#
+for (i in 1:n) {#
+	logProb = dnorm(data_x[i],mean=c(mu1_x,mu2_x),sd=sigma, log=TRUE) + dnorm(data_y[i],mean=c(mu1_y,mu2_y),sd=sigma, log=TRUE)#
+	probVec = exp(logProb-max(logProb))#
+	group[i] = sample(2,1,prob=probVec)#
+}#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs8',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#________________________
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")
+points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)
+points(data_x,data_y,pch=4,lwd=2)
+text(data_x,data_y,labels=group,pos=3)
+plotOff(active=plotToFile)
+postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu1_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu1_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu1_keep[2,] = c(mu1_x,mu1_y)
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")
+points(data_x,data_y,pch=4,lwd=2)
+text(data_x,data_y,labels=group,pos=3)
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="white")
+plot(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude'points(data_x,data_y,pch=4,lwd=2)
+# Produce a series of plots, walking through the Gibbs sampler step by step.#
+#
+# --------------------------------------------------#
+#
+# start optional save-to-file function#
+plotOn = function(active=FALSE,fileroot='',filestem1='',filestem2='',fileindex='',type='pdf',width=6,height=6,res=300) {#
+	if (active) {#
+		if (type=='pdf') {#
+			pdf(file=paste(fileroot,filestem1,filestem2,fileindex,".pdf",sep=""), bg="white", width=width, height=height)#
+		}#
+		if (type=='png') {#
+			png(file=paste(fileroot,filestem1,filestem2,fileindex,".png",sep=""), bg="white", width=width*500, height=height*500,res=res)#
+		}#
+	}#
+}#
+#
+# end optional save-to-file function#
+plotOff = function(active=FALSE) {#
+	if (active) {#
+		dev.off()#
+	}#
+}#
+#
+# smooth a matrix#
+matSmooth = function(z,smoothSize) {#
+	newMat1 = matrix(0,nrow(z),smoothSize)#
+	for (i in 1:nrow(z)) {#
+		newMat1[i,] = spline(z[i,],n=smoothSize)$y#
+	}#
+	newMat2 = matrix(0,smoothSize,smoothSize)#
+	for (i in 1:smoothSize) {#
+		newMat2[,i] = spline(newMat1[,i],n=smoothSize)$y#
+	}#
+	return(newMat2)#
+}#
+#
+# --------------------------------------------------#
+#
+# parameters#
+L = 15#
+sigma = 4#
+tau = 10#
+#
+mu_x = c(-5,5)#
+mu_y = c(5,-5)#
+#
+#mu_x = c(-1,4)#
+#mu_y = c(3,-3)#
+true_group = c(rep(1,5),rep(2,5))#
+#
+group = true_group#
+n = length(group)#
+reps = 1000#
+#
+# save to...#
+fileroot = "~/Desktop/R input and output/Gibbs/"#
+filetype = 'png'#
+fileres = 200#
+filewidth=2#
+fileheight=2#
+plotToFile = FALSE#
+#
+data_x = rnorm(n,mean=mu_x[group],sd=sigma)#
+data_y = rnorm(n,mean=mu_y[group],sd=sigma)#
+#
+gridsize = 101#
+smoothSize = 500#
+xvec = seq(-L,L,l=gridsize)#
+yvec = seq(-L,L,l=gridsize)#
+xvec2 = spline(xvec,n=smoothSize)$y#
+yvec2 = spline(yvec,n=smoothSize)$y#
+xmat = outer(rep(1,gridsize),xvec)#
+ymat = outer(yvec,rep(1,gridsize))#
+#
+mu1_keep = matrix(0,reps,2)#
+mu2_keep = matrix(0,reps,2)#
+#
+# calculate and plot initial (random) grouping#
+group = sample(2,n,rep=T)#
+#
+#__________________________________________________________#
+# PLOT 1 RAW DATA#
+#__________________________________________________________#
+# data no groups#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs0',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 2 WITH RANDOM LABELS#
+#__________________________________________________________#
+# plot with random labels#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs1',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+# calculate and plot first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+#__________________________________________________________#
+# PLOT 3 SOURCE 1 CONTOURS#
+#__________________________________________________________#
+# plot contours for group 1#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs2',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 4 SOURCE 1 CONTOURS AND DRAW#
+#__________________________________________________________#
+# draw from first posterior distribution#
+postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu1_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu1_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu1_keep[1,] = c(mu1_x,mu1_y)#
+#
+# plot contours and draw for group 1#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs3',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 5 SOURCE 2 CONTOURS#
+#__________________________________________________________#
+#
+# plot contours for group 2#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs4',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+points(data_x,data_y,pch=4,lwd=2)#
+#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 6 SOURCE 2 CONTOURS AND DRAW#
+#__________________________________________________________#
+# plot contours for group 2#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs5',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+#
+# draw from second posterior distribution#
+postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu2_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu2_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu2_keep[1,] = c(mu2_x,mu2_y)#
+#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 7 DATA AND SOURCES ONLY#
+#__________________________________________________________#
+# plot data and both sources#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs6',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 8 DATA AND SOURCES ONLY - WITHOUT LABELS#
+#__________________________________________________________#
+# plot data and both sources - without labels#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs7',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 9 ASSIGN NEW GROUPS#
+#__________________________________________________________#
+# assign new groups#
+for (i in 1:n) {#
+	logProb = dnorm(data_x[i],mean=c(mu1_x,mu2_x),sd=sigma, log=TRUE) + dnorm(data_y[i],mean=c(mu1_y,mu2_y),sd=sigma, log=TRUE)#
+	probVec = exp(logProb-max(logProb))#
+	group[i] = sample(2,1,prob=probVec)#
+}#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs8',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 10 NEW SOURCE I CONTOURS#
+#__________________________________________________________#
+# calculate and plot new first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+# plot new red contours#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs9',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 10 DRAW FROM NEW SOURCE I CONTOURS#
+#__________________________________________________________#
+#
+# draw from first posterior distribution#
+postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu1_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu1_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu1_keep[2,] = c(mu1_x,mu1_y)#
+#
+#plot change in red draw#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs10',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 11 NEW SOURCE 2 CONTOURS#
+#__________________________________________________________#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs11',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+#
+#points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 12 DRAW FROM NEW SOURCE#
+#__________________________________________________________#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs12',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+#
+# calculate and plot new first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+# draw from second posterior distribution#
+postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu2_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu2_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu2_keep[2,] = c(mu2_x,mu2_y)#
+# points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+#
+lines(c(mu2_keep[1,1],mu2_keep[2,1]),c(mu2_keep[1,2],mu2_keep[2,2]),col="blue")#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="white")
+plot(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude'points(data_x,data_y,pch=4,lwd=2)
+plot(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="white")
+points(data_x,data_y,pch=4,lwd=2)
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")
+text(data_x,data_y,labels=group,pos=3)
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)
+points(data_x,data_y,pch=4,lwd=2)
+text(data_x,data_y,labels=group,pos=3)
+lines(c(mu2_keep[1,1],mu2_keep[2,1]),c(mu2_keep[1,2],mu2_keep[2,2]),col="blue")
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="white")
+plot(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+#points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+#
+lines(c(mu2_keep[1,1],mu2_keep[2,1]),c(mu2_keep[1,2],mu2_keep[2,2]),col="blue")#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)
+# Produce a series of plots, walking through the Gibbs sampler step by step.#
+#
+# --------------------------------------------------#
+#
+# start optional save-to-file function#
+plotOn = function(active=FALSE,fileroot='',filestem1='',filestem2='',fileindex='',type='pdf',width=6,height=6,res=300) {#
+	if (active) {#
+		if (type=='pdf') {#
+			pdf(file=paste(fileroot,filestem1,filestem2,fileindex,".pdf",sep=""), bg="white", width=width, height=height)#
+		}#
+		if (type=='png') {#
+			png(file=paste(fileroot,filestem1,filestem2,fileindex,".png",sep=""), bg="white", width=width*500, height=height*500,res=res)#
+		}#
+	}#
+}#
+#
+# end optional save-to-file function#
+plotOff = function(active=FALSE) {#
+	if (active) {#
+		dev.off()#
+	}#
+}#
+#
+# smooth a matrix#
+matSmooth = function(z,smoothSize) {#
+	newMat1 = matrix(0,nrow(z),smoothSize)#
+	for (i in 1:nrow(z)) {#
+		newMat1[i,] = spline(z[i,],n=smoothSize)$y#
+	}#
+	newMat2 = matrix(0,smoothSize,smoothSize)#
+	for (i in 1:smoothSize) {#
+		newMat2[,i] = spline(newMat1[,i],n=smoothSize)$y#
+	}#
+	return(newMat2)#
+}#
+#
+# --------------------------------------------------#
+#
+# parameters#
+L = 15#
+sigma = 4#
+tau = 10#
+#
+mu_x = c(-5,5)#
+mu_y = c(5,-5)#
+#
+#mu_x = c(-1,4)#
+#mu_y = c(3,-3)#
+true_group = c(rep(1,5),rep(2,5))#
+#
+group = true_group#
+n = length(group)#
+reps = 1000#
+#
+# save to...#
+fileroot = "~/Desktop/R input and output/Gibbs/"#
+filetype = 'png'#
+fileres = 200#
+filewidth=2#
+fileheight=2#
+plotToFile = TRUE#
+#
+data_x = rnorm(n,mean=mu_x[group],sd=sigma)#
+data_y = rnorm(n,mean=mu_y[group],sd=sigma)#
+#
+gridsize = 101#
+smoothSize = 500#
+xvec = seq(-L,L,l=gridsize)#
+yvec = seq(-L,L,l=gridsize)#
+xvec2 = spline(xvec,n=smoothSize)$y#
+yvec2 = spline(yvec,n=smoothSize)$y#
+xmat = outer(rep(1,gridsize),xvec)#
+ymat = outer(yvec,rep(1,gridsize))#
+#
+mu1_keep = matrix(0,reps,2)#
+mu2_keep = matrix(0,reps,2)#
+#
+# calculate and plot initial (random) grouping#
+group = sample(2,n,rep=T)#
+#
+#__________________________________________________________#
+# PLOT 1 RAW DATA#
+#__________________________________________________________#
+# data no groups#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs0',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 2 WITH RANDOM LABELS#
+#__________________________________________________________#
+# plot with random labels#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs1',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+# calculate and plot first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+#__________________________________________________________#
+# PLOT 3 SOURCE 1 CONTOURS#
+#__________________________________________________________#
+# plot contours for group 1#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs2',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 4 SOURCE 1 CONTOURS AND DRAW#
+#__________________________________________________________#
+# draw from first posterior distribution#
+postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu1_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu1_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu1_keep[1,] = c(mu1_x,mu1_y)#
+#
+# plot contours and draw for group 1#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs3',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 5 SOURCE 2 CONTOURS#
+#__________________________________________________________#
+#
+# plot contours for group 2#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs4',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+points(data_x,data_y,pch=4,lwd=2)#
+#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 6 SOURCE 2 CONTOURS AND DRAW#
+#__________________________________________________________#
+# plot contours for group 2#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs5',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+#
+# draw from second posterior distribution#
+postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu2_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu2_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu2_keep[1,] = c(mu2_x,mu2_y)#
+#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 7 DATA AND SOURCES ONLY#
+#__________________________________________________________#
+# plot data and both sources#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs6',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 8 DATA AND SOURCES ONLY - WITHOUT LABELS#
+#__________________________________________________________#
+# plot data and both sources - without labels#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs7',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 9 ASSIGN NEW GROUPS#
+#__________________________________________________________#
+# assign new groups#
+for (i in 1:n) {#
+	logProb = dnorm(data_x[i],mean=c(mu1_x,mu2_x),sd=sigma, log=TRUE) + dnorm(data_y[i],mean=c(mu1_y,mu2_y),sd=sigma, log=TRUE)#
+	probVec = exp(logProb-max(logProb))#
+	group[i] = sample(2,1,prob=probVec)#
+}#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs8',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 10 NEW SOURCE I CONTOURS#
+#__________________________________________________________#
+# calculate and plot new first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+# plot new red contours#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs9',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 10 DRAW FROM NEW SOURCE I CONTOURS#
+#__________________________________________________________#
+#
+# draw from first posterior distribution#
+postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu1_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu1_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu1_keep[2,] = c(mu1_x,mu1_y)#
+#
+#plot change in red draw#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs10',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 11 NEW SOURCE 2 CONTOURS#
+#__________________________________________________________#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs11',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+#
+#points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+plotOff(active=plotToFile)#
+#
+#__________________________________________________________#
+# PLOT 12 DRAW FROM NEW SOURCE#
+#__________________________________________________________#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs12',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+#
+# calculate and plot new first posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==1) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="red")#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+#
+# calculate and plot second posterior distribution#
+zmat = dnorm(xmat,0,sd=tau,log=TRUE) + dnorm(ymat,0,sd=tau,log=TRUE)#
+for (i in 1:n) {#
+	if (group[i]==2) {#
+		zmat = zmat + dnorm(data_x[i],xmat,sd=sigma,log=TRUE) + dnorm(data_y[i],ymat,sd=sigma,log=TRUE)#
+	}#
+}#
+contour(xvec,yvec,t(exp(zmat)),add=TRUE,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="blue")#
+# draw from second posterior distribution#
+postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+mu2_x = rnorm(1,postmean_x,sd=sqrt(postvar))#
+mu2_y = rnorm(1,postmean_y,sd=sqrt(postvar))#
+mu2_keep[2,] = c(mu2_x,mu2_y)#
+# points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+#
+lines(c(mu2_keep[1,1],mu2_keep[2,1]),c(mu2_keep[1,2],mu2_keep[2,2]),col="blue")#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOT 13 UPDATED SOURCE POSITIONS WITHOUT CONTOURS#
+#__________________________________________________________#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs13',type=filetype,res=fileres,width=filewidth,height=fileheight)#
+contour(xvec,yvec,t(exp(zmat)),drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude',col="white")#
+#
+#points(mu1_keep[1,1],mu1_keep[1,2],pch=20,col="red",cex=1.5,drawlabels=FALSE,xaxs="i",yaxs="i",xlab='longitude',ylab='latitude'#
+points(data_x,data_y,pch=4,lwd=2)#
+#
+lines(c(mu1_keep[1,1],mu1_keep[2,1]),c(mu1_keep[1,2],mu1_keep[2,2]),col="red")#
+#
+text(data_x,data_y,labels=group,pos=3)#
+points(mu1_x,mu1_y,pch=20,col="red",cex=1.5)#
+#points(mu2_keep[1,1],mu2_keep[1,2],pch=20,col="blue",cex=1.5)#
+points(data_x,data_y,pch=4,lwd=2)#
+text(data_x,data_y,labels=group,pos=3)#
+#
+lines(c(mu2_keep[1,1],mu2_keep[2,1]),c(mu2_keep[1,2],mu2_keep[2,2]),col="blue")#
+points(mu2_x,mu2_y,pch=20,col="blue",cex=1.5)#
+plotOff(active=plotToFile)#
+#__________________________________________________________#
+# PLOTs	 14 AND ON, LOOPING THROUGH GIBBS SAMPLER#
+#__________________________________________________________#
+#
+# continue looping through Gibbs sampler, plotting at certain points#
+plotSteps = c(3,4,5,10,100,1000)#
+zmat = zmat*0#
+counter=0#
+for (rep in 3:reps) {#
+	mu1_x = mu1_keep[rep-1,1]#
+	mu1_y = mu1_keep[rep-1,2]#
+	mu2_x = mu2_keep[rep-1,1]#
+	mu2_y = mu2_keep[rep-1,2]#
+	# update grouping#
+	for (i in 1:n) {#
+		logProb = dnorm(data_x[i],mean=c(mu1_x,mu2_x),sd=sigma, log=TRUE) + dnorm(data_y[i],mean=c(mu1_y,mu2_y),sd=sigma, log=TRUE)#
+		probVec = exp(logProb-max(logProb))#
+		group[i] = sample(2,1,prob=probVec)#
+	}#
+	# draw new means#
+	postmean_x = sum(data_x[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+	postmean_y = sum(data_y[group==1])/sigma^2/(sum(group==1)/sigma^2+1/tau^2)#
+	postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+	mu1_keep[rep,1] = rnorm(1,postmean_x,sd=sqrt(postvar))#
+	mu1_keep[rep,2] = rnorm(1,postmean_y,sd=sqrt(postvar))#
+#
+	tempmat = dnorm(xmat,postmean_x,sd=sqrt(postvar))*dnorm(ymat,postmean_y,sd=sqrt(postvar))#
+	zmat = zmat + tempmat/sum(tempmat)#
+#
+	postmean_x = sum(data_x[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+	postmean_y = sum(data_y[group==2])/sigma^2/(sum(group==2)/sigma^2+1/tau^2)#
+	postvar = 1/(sum(group==1)/sigma^2+1/tau^2)#
+	mu2_keep[rep,1] = rnorm(1,postmean_x,sd=sqrt(postvar))#
+	mu2_keep[rep,2] = rnorm(1,postmean_y,sd=sqrt(postvar))#
+#
+	tempmat = dnorm(xmat,postmean_x,sd=sqrt(postvar))*dnorm(ymat,postmean_y,sd=sqrt(postvar))#
+	zmat = zmat + tempmat/sum(tempmat)#
+	if (sum(plotSteps==rep)>0) {#
+		counter = counter+1#
+		# plot data and both sources - without labels#
+		plotOn(active=plotToFile,fileroot,filestem1='Gibbs',fileindex=13+counter,type=filetype,res=fileres,width=filewidth,height=fileheight)#
+		plot(0,type='n',xlim=c(-L,L),ylim=c(-L,L),xaxs="i",yaxs="i",xlab='longitude',ylab='latitude')#
+		lines(mu1_keep[1:rep,1],mu1_keep[1:rep,2],col="red")#
+		lines(mu2_keep[1:rep,1],mu2_keep[1:rep,2],col="blue")#
+		points(mu1_keep[rep,1],mu1_keep[rep,2],pch=20,col="red",cex=1.5)#
+		points(mu2_keep[rep,1],mu2_keep[rep,2],pch=20,col="blue",cex=1.5)#
+		points(data_x,data_y,pch=4,lwd=2,cex=1)#
+		plotOff(active=plotToFile)#
+		if (!plotToFile) {Sys.sleep(0.5)}#
+	}#
+}#
+#
+# plot final distribution#
+geoprofile = matrix(rank(zmat),nrow=nrow(zmat))#
+geoprofile2 = matSmooth(geoprofile,smoothSize)#
+#
+plotOn(active=plotToFile,fileroot,filestem1='Gibbs',fileindex=13+counter+1,type=filetype,res=fileres,width=filewidth,height=fileheight)#
+image(xvec2,yvec2,t(geoprofile2),xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2,cex=1)#
+plotOff(active=plotToFile)#
+#
+plotOn(active=plotToFile,fileroot,filestem1='GibbsFinal',fileindex=13+counter+1,type=filetype,res=fileres,width=filewidth,height=fileheight)#
+image(xvec2,yvec2,t(geoprofile2),xlab='longitude',ylab='latitude')#
+points(data_x,data_y,pch=4,lwd=2,cex=1)#
+points(mu_x,mu_y,pch=15,col=c("blue","red"))#
+plotOff(active=plotToFile)
+n <- 10#
+na <- 10#
+alpha <- 1#
+#
+p <- na/(n + alpha)
+p
+n <- 10#
+na <- 10#
+alpha <- 10#
+#
+p <- na/(n + alpha)#
+p
+n <- 10#
+na <- 10#
+alpha <- 0.1#
+#
+p <- na/(n + alpha)#
+p
+n <- 20#
+na <- 10#
+alpha <- 0.1#
+#
+p <- na/(n + alpha)#
+p
+n <- 20#
+na <- 10#
+alpha <- 1#
+#
+p <- na/(n + alpha)#
+p
+n <- 20#
+na <- 10#
+alpha <- 10#
+#
+p <- na/(n + alpha)#
+p
+n <- 20#
+na <- 10#
+alpha <- 0.1#
+#
+p <- na/(n + alpha)#
+p
+library(devtools)#
+document()
+GPshapefile
+library(devtools)#
+document()
+library(devtools)
+document()
+geoPlotMapText
